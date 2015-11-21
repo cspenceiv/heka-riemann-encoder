@@ -17,6 +17,7 @@ type Event struct {
 	Tags		[]string
 	Ttl			float32
 	Attributes	map[string]string
+	Metric		interface{}
 }
 
 // Code taken from github.com/bigdatadev/goryman

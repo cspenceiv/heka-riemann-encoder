@@ -25,6 +25,7 @@ import (
 	"github.com/mozilla-services/heka/message"
 	"github.com/mozilla-services/heka/pipeline"
 	"github.com/cspenceiv/heka-riemann-encoder/riemenc"
+	rproto "github.com/cspenceiv/heka-riemann-encoder/riemenc/proto"
 )
 
 // Encoder for converting Message objects into Protocol Buffer data.
@@ -33,7 +34,7 @@ type RiemannEncoder struct {
 	processMessageFailures int64
 	processMessageSamples  int64
 	processMessageDuration int64
-	pConfig                *PipelineConfig
+	pConfig                *pipeline.PipelineConfig
 	reportLock             sync.Mutex
 	sample                 bool
 	sampleDenominator      int
@@ -41,7 +42,7 @@ type RiemannEncoder struct {
 
 // Heka will call this before calling any other methods to give us access to
 // the pipeline configuration.
-func (re *RiemannEncoder) SetPipelineConfig(pConfig *PipelineConfig) {
+func (re *RiemannEncoder) SetPipelineConfig(pConfig *pipeline.PipelineConfig) {
 	re.pConfig = pConfig
 }
 
@@ -51,7 +52,8 @@ func (re *RiemannEncoder) Init(config interface{}) error {
 	return nil
 }
 
-func (re *RiemannEncoder) Encode(pack *PipelinePack) (output []byte, err error) {
+//func (re *RiemannEncoder) Encode(pack *pipeline.PipelinePack) (output []byte, err error) {
+func (re *RiemannEncoder) Encode(pack *pipeline.PipelinePack) ([]byte, error) {
 	atomic.AddInt64(&re.processMessageCount, 1)
 	var startTime time.Time
 	if re.sample {
@@ -64,9 +66,9 @@ func (re *RiemannEncoder) Encode(pack *PipelinePack) (output []byte, err error) 
 	
 	// Gather pack data into riemann event struct
 	var event = &riemenc.Event{}
-	event.Time = pack.Message.Timestamp / 3e8
+	event.Time = *pack.Message.Timestamp / 1e9
 	
-	switch int(pack.Message.Severity) {
+	switch int(*pack.Message.Severity) {
 		case 0:
 			event.State = "Emergency"
 		case 1:
@@ -85,10 +87,10 @@ func (re *RiemannEncoder) Encode(pack *PipelinePack) (output []byte, err error) 
 			event.State = "Debug"
 	}
 	
-	event.Service = pack.Message.Logger //Consider the use of Logger and Type
-	event.Host = pack.Message.Hostname
-	if pack.Message.Payload != nil && len(pack.Message.Payload) != 0 {
-		event.Description = pack.Message.Payload
+	event.Service = *pack.Message.Logger //Consider the use of Logger and Type
+	event.Host = *pack.Message.Hostname
+	if len(*pack.Message.Payload) != 0 {
+		event.Description = *pack.Message.Payload
 	}
 	//event.Tags
 	//event.Ttl
@@ -99,16 +101,16 @@ func (re *RiemannEncoder) Encode(pack *PipelinePack) (output []byte, err error) 
 	
 	// End of gathering pack
 	
-	msg := &riemenc.Proto.Msg{}
 	pbevent, err := riemenc.EventToPbEvent(event)
 	if err != nil {
 		return nil, err
 	}
 	
+	msg := &rproto.Msg{}
 	msg.Events = append(msg.Events, pbevent)
 	output, err := proto.Marshal(msg)
 	if err != nil {
-		return msg, err
+		return nil, err
 	}
 	
 	////////////////////////////////////////////
@@ -158,7 +160,7 @@ func (re *RiemannEncoder) ReportMsg(msg *message.Message) error {
 }
 
 func init() {
-	RegisterPlugin("RiemannEncoder", func() interface{} {
+	pipeline.RegisterPlugin("RiemannEncoder", func() interface{} {
 		return new(RiemannEncoder)
 	})
 }
