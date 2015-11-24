@@ -21,7 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/mozilla-services/heka/message"
 	"github.com/mozilla-services/heka/pipeline"
 	"github.com/cspenceiv/heka-riemann-encoder/riemenc"
@@ -66,9 +66,11 @@ func (re *RiemannEncoder) Encode(pack *pipeline.PipelinePack) ([]byte, error) {
 	
 	// Gather pack data into riemann event struct
 	var event = &riemenc.Event{}
-	event.Time = *pack.Message.Timestamp / 1e9
+	var message = pack.Message
+	event.Time = *message.Timestamp / 1e9
 	
-	switch int(*pack.Message.Severity) {
+	if nil != message.Severity {
+	switch int(*message.Severity) {
 		case 0:
 			event.State = "Emergency"
 		case 1:
@@ -86,16 +88,17 @@ func (re *RiemannEncoder) Encode(pack *pipeline.PipelinePack) ([]byte, error) {
 		case 7:
 			event.State = "Debug"
 	}
+	}
 	
-	event.Service = *pack.Message.Logger //Consider the use of Logger and Type
-	event.Host = *pack.Message.Hostname
-	if len(*pack.Message.Payload) != 0 {
-		event.Description = *pack.Message.Payload
+	event.Service = *message.Logger //Consider the use of Logger and Type
+	event.Host = *message.Hostname
+	if len(*message.Payload) != 0 {
+		event.Description = *message.Payload
 	}
 	//event.Tags
 	//event.Ttl
 	//event.Attributes
-	if metric, ok := pack.Message.GetFieldValue("Metric"); ok {
+	if metric, ok := message.GetFieldValue("Metric"); ok {
 		event.Metric = metric
 	}
 	
