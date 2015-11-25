@@ -16,6 +16,7 @@
 package heka_rieman_encoder
 
 import (
+	"encoding/binary"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -60,34 +61,30 @@ func (re *RiemannEncoder) Encode(pack *pipeline.PipelinePack) ([]byte, error) {
 		startTime = time.Now()
 	}
 
-	////////////////////////////////////////////
-	// New Code
-	////////////////////////////////////////////
-	
 	// Gather pack data into riemann event struct
 	var event = &riemenc.Event{}
 	var message = pack.Message
 	event.Time = *message.Timestamp / 1e9
 	
 	if nil != message.Severity {
-	switch int(*message.Severity) {
-		case 0:
-			event.State = "Emergency"
-		case 1:
-			event.State = "Alert"
-		case 2:
-			event.State = "Critical"
-		case 3:
-			event.State = "Error"
-		case 4:
-			event.State = "Warning"
-		case 5:
-			event.State = "Notice"
-		case 6:
-			event.State = "Informational"
-		case 7:
-			event.State = "Debug"
-	}
+		switch int(*message.Severity) {
+			case 0:
+				event.State = "Emergency"
+			case 1:
+				event.State = "Alert"
+			case 2:
+				event.State = "Critical"
+			case 3:
+				event.State = "Error"
+			case 4:
+				event.State = "Warning"
+			case 5:
+				event.State = "Notice"
+			case 6:
+				event.State = "Informational"
+			case 7:
+				event.State = "Debug"
+		}
 	}
 	
 	event.Service = *message.Logger //Consider the use of Logger and Type
@@ -111,14 +108,16 @@ func (re *RiemannEncoder) Encode(pack *pipeline.PipelinePack) ([]byte, error) {
 	
 	msg := &rproto.Msg{}
 	msg.Events = append(msg.Events, pbevent)
-	output, err := proto.Marshal(msg)
+	pboutput, err := proto.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
-	
-	////////////////////////////////////////////
-	// End New Code
-	////////////////////////////////////////////
+
+	// Prepend output with the length of pboutput for Riemann
+	pblen := uint32(len(pboutput))
+	output := make([]byte, 4)
+	binary.BigEndian.PutUint32(output, pblen)
+	output = append(output, pboutput[:]...)
 	
 	// Once the reimplementation of the output API is finished we should be
 	// able to just return pack.MsgBytes directly, but for now we need to copy
