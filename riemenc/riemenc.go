@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	pb "github.com/golang/protobuf/proto"
+	pb "github.com/gogo/protobuf/proto"
 	"github.com/cspenceiv/heka-riemann-encoder/riemenc/proto"
 )
 
