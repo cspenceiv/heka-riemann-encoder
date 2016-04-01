@@ -18,12 +18,10 @@ It has these top-level messages:
 package proto
 
 import proto1 "github.com/gogo/protobuf/proto"
-import fmt "fmt"
 import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
-var _ = fmt.Errorf
 var _ = math.Inf
 
 // Deprecated; state was used by early versions of the protocol, but not any
@@ -285,9 +283,4 @@ func (m *Attribute) GetValue() string {
 }
 
 func init() {
-	proto1.RegisterType((*State)(nil), "State")
-	proto1.RegisterType((*Event)(nil), "Event")
-	proto1.RegisterType((*Query)(nil), "Query")
-	proto1.RegisterType((*Msg)(nil), "Msg")
-	proto1.RegisterType((*Attribute)(nil), "Attribute")
 }
